@@ -1,0 +1,1540 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>手机记账工具 - 深色模式</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- 引入xlsx库用于导出Excel -->
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #6a11cb;
+            --secondary-color: #2575fc;
+            --dark-bg: #121212;
+            --darker-bg: #0a0a0a;
+            --card-bg: #1e1e1e;
+            --surface-color: #2d2d2d;
+            --text-primary: #e0e0e0;
+            --text-secondary: #b0b0b0;
+            --text-tertiary: #888;
+            --income-color: #4cd964;
+            --expense-color: #ff3b30;
+            --border-color: #333;
+            --shadow-color: rgba(0, 0, 0, 0.4);
+            --hover-bg: #3a3a3a;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        
+        body {
+            background-color: var(--dark-bg);
+            color: var(--text-primary);
+            line-height: 1.6;
+            padding: 10px;
+            max-width: 500px;
+            margin: 0 auto;
+            min-height: 100vh;
+            position: relative;
+            padding-bottom: 90px;
+        }
+        
+        .container {
+            background-color: var(--card-bg);
+            border-radius: 20px;
+            box-shadow: 0 4px 15px var(--shadow-color);
+            overflow: hidden;
+            margin-bottom: 15px;
+            border: 1px solid var(--border-color);
+        }
+        
+        header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 20px 20px 0 0;
+            position: relative;
+        }
+        
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        
+        .subtitle {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        
+        .theme-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+        
+        .theme-toggle:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: rotate(30deg);
+        }
+        
+        .balance-card {
+            background: linear-gradient(135deg, #3a7bd5 0%, #00d2ff 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 15px;
+            box-shadow: 0 5px 15px var(--shadow-color);
+        }
+        
+        .balance-title {
+            font-size: 1rem;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+        
+        .balance-amount {
+            font-size: 2.2rem;
+            font-weight: 700;
+        }
+        
+        .income-expense {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+        }
+        
+        .income, .expense {
+            text-align: center;
+            flex: 1;
+        }
+        
+        .income h3, .expense h3 {
+            font-size: 0.9rem;
+            font-weight: 500;
+            opacity: 0.9;
+        }
+        
+        .income-amount {
+            color: var(--income-color);
+            font-size: 1.4rem;
+            font-weight: 600;
+        }
+        
+        .expense-amount {
+            color: var(--expense-color);
+            font-size: 1.4rem;
+            font-weight: 600;
+        }
+        
+        .section-title {
+            padding: 15px 20px 10px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .export-btn {
+            background: linear-gradient(135deg, #00b09b 0%, #96c93d 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 8px 15px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.3s;
+        }
+        
+        .export-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 3px 8px rgba(0, 176, 155, 0.3);
+        }
+        
+        .form-container {
+            padding: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 12px 15px;
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            font-size: 1rem;
+            color: var(--text-primary);
+            transition: border 0.3s;
+        }
+        
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--primary-color);
+            outline: none;
+        }
+        
+        .type-toggle {
+            display: flex;
+            background-color: var(--surface-color);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 15px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .type-toggle button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            background: none;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: var(--text-secondary);
+        }
+        
+        .type-toggle button.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn-clear {
+            background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+            margin-top: 10px;
+        }
+        
+        .btn-backup {
+            background: linear-gradient(135deg, #00b09b 0%, #96c93d 100%);
+            margin-top: 10px;
+        }
+        
+        .btn-import {
+            background: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%);
+            margin-top: 10px;
+        }
+        
+        .category-icons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .category-icon {
+            flex: 1;
+            min-width: calc(25% - 10px);
+            text-align: center;
+            padding: 10px 5px;
+            border-radius: 10px;
+            background-color: var(--surface-color);
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+        
+        .category-icon:hover {
+            background-color: var(--hover-bg);
+        }
+        
+        .category-icon.active {
+            background-color: rgba(106, 17, 203, 0.2);
+            color: var(--primary-color);
+            font-weight: 600;
+            border-color: var(--primary-color);
+        }
+        
+        .category-icon i {
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+            display: block;
+        }
+        
+        .category-icon span {
+            font-size: 0.8rem;
+        }
+        
+        .tabs {
+            display: flex;
+            background-color: var(--surface-color);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 20px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: var(--text-secondary);
+        }
+        
+        .tab.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 0 20px 20px;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin: 20px 0;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .stat-card {
+            background-color: var(--surface-color);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-top: 5px;
+        }
+        
+        .income-stat {
+            color: var(--income-color);
+        }
+        
+        .expense-stat {
+            color: var(--expense-color);
+        }
+        
+        .records-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .record-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px;
+            border-bottom: 1px solid var(--border-color);
+            align-items: center;
+        }
+        
+        .record-item:last-child {
+            border-bottom: none;
+        }
+        
+        .record-info h4 {
+            font-size: 1rem;
+            margin-bottom: 5px;
+        }
+        
+        .record-info p {
+            font-size: 0.85rem;
+            color: var(--text-tertiary);
+        }
+        
+        .record-amount.income {
+            color: var(--income-color);
+            font-weight: 600;
+            font-size: 1.2rem;
+        }
+        
+        .record-amount.expense {
+            color: var(--expense-color);
+            font-weight: 600;
+            font-size: 1.2rem;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-tertiary);
+        }
+        
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-tertiary);
+            font-size: 0.9rem;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background-color: var(--card-bg);
+            border-radius: 15px;
+            padding: 25px;
+            max-width: 400px;
+            width: 90%;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        .modal-title {
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+            color: var(--text-primary);
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .modal-buttons button {
+            flex: 1;
+        }
+        
+        @media (max-width: 480px) {
+            body {
+                padding: 5px;
+            }
+            
+            .container {
+                border-radius: 15px;
+            }
+            
+            header {
+                padding: 15px;
+            }
+            
+            h1 {
+                font-size: 1.5rem;
+            }
+            
+            .balance-amount {
+                font-size: 1.8rem;
+            }
+            
+            .form-container {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-money-check-alt"></i> 手机记账工具</h1>
+            <p class="subtitle">深色模式 • 支持Excel导出</p>
+            <button class="theme-toggle" id="theme-toggle">
+                <i class="fas fa-sun"></i>
+            </button>
+        </header>
+        
+        <div class="balance-card">
+            <div class="balance-title">当前余额</div>
+            <div class="balance-amount" id="balance">¥0.00</div>
+            <div class="income-expense">
+                <div class="income">
+                    <h3>总收入</h3>
+                    <div class="income-amount" id="total-income">¥0.00</div>
+                </div>
+                <div class="expense">
+                    <h3>总支出</h3>
+                    <div class="expense-amount" id="total-expense">¥0.00</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section-title">
+            记录收支
+            <button class="export-btn" id="export-excel-btn">
+                <i class="fas fa-file-excel"></i> 导出Excel
+            </button>
+        </div>
+        <div class="form-container">
+            <div class="type-toggle">
+                <button id="expense-btn" class="active">支出</button>
+                <button id="income-btn">收入</button>
+            </div>
+            
+            <form id="record-form">
+                <div class="form-group">
+                    <label for="date">日期</label>
+                    <input type="date" id="date" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="amount">金额 (元)</label>
+                    <input type="number" id="amount" min="0.01" step="0.01" placeholder="0.00" required>
+                </div>
+                
+                <div class="form-group" id="category-group">
+                    <label>用途分类</label>
+                    <div class="category-icons">
+                        <div class="category-icon active" data-category="吃">
+                            <i class="fas fa-utensils"></i>
+                            <span>吃</span>
+                        </div>
+                        <div class="category-icon" data-category="喝">
+                            <i class="fas fa-coffee"></i>
+                            <span>喝</span>
+                        </div>
+                        <div class="category-icon" data-category="医">
+                            <i class="fas fa-first-aid"></i>
+                            <span>医</span>
+                        </div>
+                        <div class="category-icon" data-category="衣">
+                            <i class="fas fa-tshirt"></i>
+                            <span>衣</span>
+                        </div>
+                        <div class="category-icon" data-category="住">
+                            <i class="fas fa-home"></i>
+                            <span>住</span>
+                        </div>
+                        <div class="category-icon" data-category="行">
+                            <i class="fas fa-car"></i>
+                            <span>行</span>
+                        </div>
+                        <div class="category-icon" data-category="乐">
+                            <i class="fas fa-gamepad"></i>
+                            <span>乐</span>
+                        </div>
+                        <div class="category-icon" data-category="其他">
+                            <i class="fas fa-ellipsis-h"></i>
+                            <span>其他</span>
+                        </div>
+                    </div>
+                    <input type="hidden" id="category" value="吃" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="purpose">用途说明</label>
+                    <input type="text" id="purpose" placeholder="例如：午餐、交通费、工资等" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="notes">备注 (可选)</label>
+                    <textarea id="notes" rows="2" placeholder="可记录更多细节..."></textarea>
+                </div>
+                
+                <button type="submit" class="btn" id="save-btn">
+                    <i class="fas fa-save"></i> 保存记录
+                </button>
+                <button type="button" class="btn btn-clear" id="clear-btn">
+                    <i class="fas fa-trash-alt"></i> 清除所有数据
+                </button>
+                <button type="button" class="btn btn-backup" id="backup-btn">
+                    <i class="fas fa-download"></i> 备份数据
+                </button>
+                <button type="button" class="btn btn-import" id="import-btn">
+                    <i class="fas fa-upload"></i> 导入数据
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="section-title">统计与图表</div>
+        
+        <div class="tabs">
+            <div class="tab active" data-tab="day">今日</div>
+            <div class="tab" data-tab="month">本月</div>
+            <div class="tab" data-tab="year">今年</div>
+            <div class="tab" data-tab="all">全部</div>
+        </div>
+        
+        <div class="tab-content active" id="day-tab">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div>今日收入</div>
+                    <div class="stat-value income-stat" id="day-income">¥0.00</div>
+                </div>
+                <div class="stat-card">
+                    <div>今日支出</div>
+                    <div class="stat-value expense-stat" id="day-expense">¥0.00</div>
+                </div>
+            </div>
+            
+            <div class="chart-container">
+                <canvas id="day-chart"></canvas>
+            </div>
+            
+            <div class="section-title">今日记录</div>
+            <div class="records-list" id="day-records">
+                <div class="empty-state">
+                    <i class="far fa-calendar-check"></i>
+                    <p>今日暂无记录</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="tab-content" id="month-tab">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div>本月收入</div>
+                    <div class="stat-value income-stat" id="month-income">¥0.00</div>
+                </div>
+                <div class="stat-card">
+                    <div>本月支出</div>
+                    <div class="stat-value expense-stat" id="month-expense">¥0.00</div>
+                </div>
+            </div>
+            
+            <div class="chart-container">
+                <canvas id="month-chart"></canvas>
+            </div>
+            
+            <div class="section-title">本月记录</div>
+            <div class="records-list" id="month-records">
+                <div class="empty-state">
+                    <i class="far fa-calendar-alt"></i>
+                    <p>本月暂无记录</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="tab-content" id="year-tab">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div>今年收入</div>
+                    <div class="stat-value income-stat" id="year-income">¥0.00</div>
+                </div>
+                <div class="stat-card">
+                    <div>今年支出</div>
+                    <div class="stat-value expense-stat" id="year-expense">¥0.00</div>
+                </div>
+            </div>
+            
+            <div class="chart-container">
+                <canvas id="year-chart"></canvas>
+            </div>
+        </div>
+        
+        <div class="tab-content" id="all-tab">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div>总收入</div>
+                    <div class="stat-value income-stat" id="all-income">¥0.00</div>
+                </div>
+                <div class="stat-card">
+                    <div>总支出</div>
+                    <div class="stat-value expense-stat" id="all-expense">¥0.00</div>
+                </div>
+            </div>
+            
+            <div class="chart-container">
+                <canvas id="all-chart"></canvas>
+            </div>
+            
+            <div class="section-title">所有记录</div>
+            <div class="records-list" id="all-records">
+                <div class="empty-state">
+                    <i class="far fa-file-alt"></i>
+                    <p>暂无记录，开始记账吧！</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 导出选项模态框 -->
+    <div class="modal" id="export-modal">
+        <div class="modal-content">
+            <h3 class="modal-title">导出选项</h3>
+            <p>选择要导出的数据范围：</p>
+            <div class="form-group" style="margin-top: 15px;">
+                <select id="export-range" style="width: 100%;">
+                    <option value="all">全部数据</option>
+                    <option value="year">今年数据</option>
+                    <option value="month">本月数据</option>
+                    <option value="day">今日数据</option>
+                </select>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" id="export-confirm-btn">
+                    <i class="fas fa-file-excel"></i> 导出Excel
+                </button>
+                <button class="btn btn-clear" id="export-cancel-btn">
+                    取消
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 导入数据模态框 -->
+    <div class="modal" id="import-modal">
+        <div class="modal-content">
+            <h3 class="modal-title">导入数据</h3>
+            <p>警告：导入数据将覆盖当前所有记录！</p>
+            <div class="form-group" style="margin-top: 15px;">
+                <label for="import-file">选择备份文件 (JSON格式)</label>
+                <input type="file" id="import-file" accept=".json,.txt">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-import" id="import-confirm-btn">
+                    <i class="fas fa-upload"></i> 导入数据
+                </button>
+                <button class="btn btn-clear" id="import-cancel-btn">
+                    取消
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p>数据保存在本地 • 深色模式 • 支持Excel导出 | 记账工具 v2.0</p>
+    </div>
+
+    <script>
+        // 初始化变量
+        let records = JSON.parse(localStorage.getItem('financeRecords')) || [];
+        let isExpense = true;
+        let selectedCategory = '吃';
+        let charts = {};
+        let isDarkMode = true; // 默认深色模式
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 设置默认日期为今天
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('date').value = today;
+            
+            // 初始化图表颜色
+            initializeChartColors();
+            
+            // 绑定事件监听器
+            initEventListeners();
+            
+            // 加载并显示数据
+            updateDisplay();
+        });
+        
+        // 初始化事件监听器
+        function initEventListeners() {
+            // 主题切换
+            document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+            
+            // 支出/收入切换
+            document.getElementById('expense-btn').addEventListener('click', function() {
+                setRecordType(true);
+            });
+            
+            document.getElementById('income-btn').addEventListener('click', function() {
+                setRecordType(false);
+            });
+            
+            // 分类选择
+            document.querySelectorAll('.category-icon').forEach(icon => {
+                icon.addEventListener('click', function() {
+                    document.querySelectorAll('.category-icon').forEach(i => i.classList.remove('active'));
+                    this.classList.add('active');
+                    selectedCategory = this.dataset.category;
+                    document.getElementById('category').value = selectedCategory;
+                });
+            });
+            
+            // 表单提交
+            document.getElementById('record-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                saveRecord();
+            });
+            
+            // 清除数据按钮
+            document.getElementById('clear-btn').addEventListener('click', function() {
+                if (confirm('确定要清除所有记账数据吗？此操作不可撤销。')) {
+                    clearAllData();
+                }
+            });
+            
+            // 导出Excel按钮
+            document.getElementById('export-excel-btn').addEventListener('click', function() {
+                document.getElementById('export-modal').style.display = 'flex';
+            });
+            
+            // 导出确认按钮
+            document.getElementById('export-confirm-btn').addEventListener('click', exportToExcel);
+            
+            // 导出取消按钮
+            document.getElementById('export-cancel-btn').addEventListener('click', function() {
+                document.getElementById('export-modal').style.display = 'none';
+            });
+            
+            // 备份数据按钮
+            document.getElementById('backup-btn').addEventListener('click', backupData);
+            
+            // 导入数据按钮
+            document.getElementById('import-btn').addEventListener('click', function() {
+                document.getElementById('import-modal').style.display = 'flex';
+            });
+            
+            // 导入确认按钮
+            document.getElementById('import-confirm-btn').addEventListener('click', importData);
+            
+            // 导入取消按钮
+            document.getElementById('import-cancel-btn').addEventListener('click', function() {
+                document.getElementById('import-modal').style.display = 'none';
+                document.getElementById('import-file').value = '';
+            });
+            
+            // 标签页切换
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const tabId = this.dataset.tab;
+                    
+                    // 更新标签页状态
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // 显示对应内容
+                    document.querySelectorAll('.tab-content').forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    document.getElementById(`${tabId}-tab`).classList.add('active');
+                    
+                    // 更新图表
+                    updateCharts();
+                });
+            });
+        }
+        
+        // 切换主题
+        function toggleTheme() {
+            isDarkMode = !isDarkMode;
+            const themeToggle = document.getElementById('theme-toggle');
+            
+            if (isDarkMode) {
+                // 切换到深色模式
+                document.documentElement.style.setProperty('--dark-bg', '#121212');
+                document.documentElement.style.setProperty('--darker-bg', '#0a0a0a');
+                document.documentElement.style.setProperty('--card-bg', '#1e1e1e');
+                document.documentElement.style.setProperty('--surface-color', '#2d2d2d');
+                document.documentElement.style.setProperty('--text-primary', '#e0e0e0');
+                document.documentElement.style.setProperty('--text-secondary', '#b0b0b0');
+                document.documentElement.style.setProperty('--border-color', '#333');
+                document.documentElement.style.setProperty('--shadow-color', 'rgba(0, 0, 0, 0.4)');
+                document.documentElement.style.setProperty('--hover-bg', '#3a3a3a');
+                themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+            } else {
+                // 切换到浅色模式
+                document.documentElement.style.setProperty('--dark-bg', '#f5f7fa');
+                document.documentElement.style.setProperty('--darker-bg', '#eaeaea');
+                document.documentElement.style.setProperty('--card-bg', '#ffffff');
+                document.documentElement.style.setProperty('--surface-color', '#f8f9fa');
+                document.documentElement.style.setProperty('--text-primary', '#333333');
+                document.documentElement.style.setProperty('--text-secondary', '#666666');
+                document.documentElement.style.setProperty('--border-color', '#ddd');
+                document.documentElement.style.setProperty('--shadow-color', 'rgba(0, 0, 0, 0.08)');
+                document.documentElement.style.setProperty('--hover-bg', '#e9ecef');
+                themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
+            }
+            
+            // 重新初始化图表颜色
+            initializeChartColors();
+            updateCharts();
+        }
+        
+        // 初始化图表颜色
+        function initializeChartColors() {
+            if (isDarkMode) {
+                Chart.defaults.color = '#e0e0e0';
+                Chart.defaults.borderColor = '#333';
+            } else {
+                Chart.defaults.color = '#333';
+                Chart.defaults.borderColor = '#ddd';
+            }
+        }
+        
+        // 设置记录类型（支出/收入）
+        function setRecordType(expense) {
+            isExpense = expense;
+            
+            if (expense) {
+                document.getElementById('expense-btn').classList.add('active');
+                document.getElementById('income-btn').classList.remove('active');
+                document.getElementById('category-group').style.display = 'block';
+            } else {
+                document.getElementById('expense-btn').classList.remove('active');
+                document.getElementById('income-btn').classList.add('active');
+                document.getElementById('category-group').style.display = 'none';
+                document.getElementById('category').value = '收入';
+            }
+        }
+        
+        // 保存记录
+        function saveRecord() {
+            const date = document.getElementById('date').value;
+            const amount = parseFloat(document.getElementById('amount').value);
+            const category = isExpense ? selectedCategory : '收入';
+            const purpose = document.getElementById('purpose').value.trim();
+            const notes = document.getElementById('notes').value.trim();
+            
+            if (!date || !amount || !purpose) {
+                alert('请填写完整信息');
+                return;
+            }
+            
+            const record = {
+                id: Date.now(),
+                date: date,
+                amount: amount,
+                type: isExpense ? 'expense' : 'income',
+                category: category,
+                purpose: purpose,
+                notes: notes,
+                timestamp: new Date().getTime()
+            };
+            
+            records.push(record);
+            localStorage.setItem('financeRecords', JSON.stringify(records));
+            
+            // 重置表单
+            document.getElementById('record-form').reset();
+            document.getElementById('date').value = new Date().toISOString().split('T')[0];
+            
+            // 重置分类选择
+            if (isExpense) {
+                document.querySelectorAll('.category-icon').forEach(i => i.classList.remove('active'));
+                document.querySelector('.category-icon[data-category="吃"]').classList.add('active');
+                selectedCategory = '吃';
+                document.getElementById('category').value = '吃';
+            }
+            
+            // 更新显示
+            updateDisplay();
+            
+            // 显示成功消息
+            alert('记录保存成功！');
+        }
+        
+        // 清除所有数据
+        function clearAllData() {
+            records = [];
+            localStorage.removeItem('financeRecords');
+            updateDisplay();
+            alert('所有数据已清除');
+        }
+        
+        // 备份数据
+        function backupData() {
+            const dataStr = JSON.stringify(records, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `记账备份_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            alert('数据备份已下载！');
+        }
+        
+        // 导入数据
+        function importData() {
+            const fileInput = document.getElementById('import-file');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('请选择要导入的文件');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    
+                    // 验证数据格式
+                    if (!Array.isArray(importedData) || importedData.length === 0) {
+                        throw new Error('文件格式不正确');
+                    }
+                    
+                    // 检查数据项格式
+                    const firstItem = importedData[0];
+                    if (!firstItem.id || !firstItem.date || !firstItem.amount || !firstItem.type) {
+                        throw new Error('数据格式不正确');
+                    }
+                    
+                    if (confirm(`确认导入 ${importedData.length} 条记录吗？这将覆盖当前所有数据。`)) {
+                        records = importedData;
+                        localStorage.setItem('financeRecords', JSON.stringify(records));
+                        updateDisplay();
+                        alert('数据导入成功！');
+                        
+                        // 关闭模态框
+                        document.getElementById('import-modal').style.display = 'none';
+                        document.getElementById('import-file').value = '';
+                    }
+                } catch (error) {
+                    alert('导入失败：' + error.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+        
+        // 导出为Excel
+        function exportToExcel() {
+            const exportRange = document.getElementById('export-range').value;
+            let exportRecords = [];
+            
+            const now = new Date();
+            const today = now.toISOString().split('T')[0];
+            const currentMonth = now.getMonth() + 1;
+            const currentYear = now.getFullYear();
+            
+            switch(exportRange) {
+                case 'day':
+                    exportRecords = records.filter(r => r.date === today);
+                    break;
+                case 'month':
+                    exportRecords = records.filter(r => {
+                        const recordDate = new Date(r.date);
+                        return recordDate.getMonth() + 1 === currentMonth && 
+                               recordDate.getFullYear() === currentYear;
+                    });
+                    break;
+                case 'year':
+                    exportRecords = records.filter(r => {
+                        const recordDate = new Date(r.date);
+                        return recordDate.getFullYear() === currentYear;
+                    });
+                    break;
+                case 'all':
+                default:
+                    exportRecords = records;
+                    break;
+            }
+            
+            if (exportRecords.length === 0) {
+                alert('没有数据可导出！');
+                document.getElementById('export-modal').style.display = 'none';
+                return;
+            }
+            
+            // 准备Excel数据
+            const excelData = exportRecords.map(record => {
+                return {
+                    '日期': record.date,
+                    '类型': record.type === 'expense' ? '支出' : '收入',
+                    '金额': record.amount,
+                    '分类': record.category,
+                    '用途': record.purpose,
+                    '备注': record.notes || '',
+                    'ID': record.id
+                };
+            });
+            
+            // 添加汇总行
+            const totalExpense = exportRecords
+                .filter(r => r.type === 'expense')
+                .reduce((sum, r) => sum + r.amount, 0);
+            
+            const totalIncome = exportRecords
+                .filter(r => r.type === 'income')
+                .reduce((sum, r) => sum + r.amount, 0);
+            
+            const totalBalance = totalIncome - totalExpense;
+            
+            excelData.push(
+                {},
+                {'日期': '汇总', '类型': '总支出', '金额': totalExpense},
+                {'日期': '汇总', '类型': '总收入', '金额': totalIncome},
+                {'日期': '汇总', '类型': '余额', '金额': totalBalance}
+            );
+            
+            // 创建工作表
+            const ws = XLSX.utils.json_to_sheet(excelData);
+            
+            // 设置列宽
+            const wscols = [
+                {wch: 12}, // 日期
+                {wch: 8},  // 类型
+                {wch: 12}, // 金额
+                {wch: 10}, // 分类
+                {wch: 20}, // 用途
+                {wch: 25}, // 备注
+                {wch: 15}  // ID
+            ];
+            ws['!cols'] = wscols;
+            
+            // 创建工作簿
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "记账数据");
+            
+            // 生成文件名
+            const fileName = `记账数据_${exportRange}_${new Date().toISOString().split('T')[0]}.xlsx`;
+            
+            // 导出文件
+            XLSX.writeFile(wb, fileName);
+            
+            // 关闭模态框
+            document.getElementById('export-modal').style.display = 'none';
+            alert(`数据已导出为 ${fileName}`);
+        }
+        
+        // 更新显示
+        function updateDisplay() {
+            // 计算总额
+            const totalIncome = records
+                .filter(r => r.type === 'income')
+                .reduce((sum, r) => sum + r.amount, 0);
+            
+            const totalExpense = records
+                .filter(r => r.type === 'expense')
+                .reduce((sum, r) => sum + r.amount, 0);
+            
+            const balance = totalIncome - totalExpense;
+            
+            // 更新总额显示
+            document.getElementById('balance').textContent = `¥${balance.toFixed(2)}`;
+            document.getElementById('total-income').textContent = `¥${totalIncome.toFixed(2)}`;
+            document.getElementById('total-expense').textContent = `¥${totalExpense.toFixed(2)}`;
+            
+            // 更新统计数据
+            updateStatistics();
+            
+            // 更新记录列表
+            updateRecordLists();
+            
+            // 更新图表
+            updateCharts();
+        }
+        
+        // 更新统计数据
+        function updateStatistics() {
+            const now = new Date();
+            const today = now.toISOString().split('T')[0];
+            const currentMonth = now.getMonth() + 1;
+            const currentYear = now.getFullYear();
+            
+            // 今日数据
+            const todayRecords = records.filter(r => r.date === today);
+            const todayIncome = todayRecords
+                .filter(r => r.type === 'income')
+                .reduce((sum, r) => sum + r.amount, 0);
+            const todayExpense = todayRecords
+                .filter(r => r.type === 'expense')
+                .reduce((sum, r) => sum + r.amount, 0);
+            
+            document.getElementById('day-income').textContent = `¥${todayIncome.toFixed(2)}`;
+            document.getElementById('day-expense').textContent = `¥${todayExpense.toFixed(2)}`;
+            
+            // 本月数据
+            const monthRecords = records.filter(r => {
+                const recordDate = new Date(r.date);
+                return recordDate.getMonth() + 1 === currentMonth && 
+                       recordDate.getFullYear() === currentYear;
+            });
+            
+            const monthIncome = monthRecords
+                .filter(r => r.type === 'income')
+                .reduce((sum, r) => sum + r.amount, 0);
+            const monthExpense = monthRecords
+                .filter(r => r.type === 'expense')
+                .reduce((sum, r) => sum + r.amount, 0);
+            
+            document.getElementById('month-income').textContent = `¥${monthIncome.toFixed(2)}`;
+            document.getElementById('month-expense').textContent = `¥${monthExpense.toFixed(2)}`;
+            
+            // 今年数据
+            const yearRecords = records.filter(r => {
+                const recordDate = new Date(r.date);
+                return recordDate.getFullYear() === currentYear;
+            });
+            
+            const yearIncome = yearRecords
+                .filter(r => r.type === 'income')
+                .reduce((sum, r) => sum + r.amount, 0);
+            const yearExpense = yearRecords
+                .filter(r => r.type === 'expense')
+                .reduce((sum, r) => sum + r.amount, 0);
+            
+            document.getElementById('year-income').textContent = `¥${yearIncome.toFixed(2)}`;
+            document.getElementById('year-expense').textContent = `¥${yearExpense.toFixed(2)}`;
+            
+            // 所有数据
+            const allIncome = records
+                .filter(r => r.type === 'income')
+                .reduce((sum, r) => sum + r.amount, 0);
+            const allExpense = records
+                .filter(r => r.type === 'expense')
+                .reduce((sum, r) => sum + r.amount, 0);
+            
+            document.getElementById('all-income').textContent = `¥${allIncome.toFixed(2)}`;
+            document.getElementById('all-expense').textContent = `¥${allExpense.toFixed(2)}`;
+        }
+        
+        // 更新记录列表
+        function updateRecordLists() {
+            const now = new Date();
+            const today = now.toISOString().split('T')[0];
+            const currentMonth = now.getMonth() + 1;
+            const currentYear = now.getFullYear();
+            
+            // 今日记录
+            const todayRecords = records
+                .filter(r => r.date === today)
+                .sort((a, b) => b.timestamp - a.timestamp);
+            
+            updateRecordList('day-records', todayRecords);
+            
+            // 本月记录
+            const monthRecords = records
+                .filter(r => {
+                    const recordDate = new Date(r.date);
+                    return recordDate.getMonth() + 1 === currentMonth && 
+                           recordDate.getFullYear() === currentYear;
+                })
+                .sort((a, b) => b.timestamp - a.timestamp);
+            
+            updateRecordList('month-records', monthRecords);
+            
+            // 所有记录
+            const allRecords = [...records].sort((a, b) => b.timestamp - a.timestamp);
+            updateRecordList('all-records', allRecords);
+        }
+        
+        // 更新单个记录列表
+        function updateRecordList(elementId, records) {
+            const container = document.getElementById(elementId);
+            
+            if (records.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="far fa-calendar-check"></i>
+                        <p>暂无记录</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            records.forEach(record => {
+                const typeClass = record.type === 'income' ? 'income' : 'expense';
+                const typeSign = record.type === 'income' ? '+' : '-';
+                const categoryIcon = getCategoryIcon(record.category);
+                
+                html += `
+                    <div class="record-item">
+                        <div class="record-info">
+                            <h4>${record.purpose}</h4>
+                            <p>${record.date} • ${record.category} ${record.notes ? '• ' + record.notes : ''}</p>
+                        </div>
+                        <div class="record-amount ${typeClass}">
+                            ${typeSign}¥${record.amount.toFixed(2)}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        // 获取分类图标
+        function getCategoryIcon(category) {
+            const icons = {
+                '吃': 'fas fa-utensils',
+                '喝': 'fas fa-coffee',
+                '医': 'fas fa-first-aid',
+                '衣': 'fas fa-tshirt',
+                '住': 'fas fa-home',
+                '行': 'fas fa-car',
+                '乐': 'fas fa-gamepad',
+                '其他': 'fas fa-ellipsis-h',
+                '收入': 'fas fa-money-bill-wave'
+            };
+            
+            return icons[category] || 'fas fa-question-circle';
+        }
+        
+        // 更新图表
+        function updateCharts() {
+            const now = new Date();
+            const today = now.toISOString().split('T')[0];
+            const currentMonth = now.getMonth() + 1;
+            const currentYear = now.getFullYear();
+            
+            // 今日支出分类
+            const todayExpenses = records.filter(r => 
+                r.date === today && r.type === 'expense'
+            );
+            
+            // 本月支出分类
+            const monthExpenses = records.filter(r => {
+                const recordDate = new Date(r.date);
+                return recordDate.getMonth() + 1 === currentMonth && 
+                       recordDate.getFullYear() === currentYear &&
+                       r.type === 'expense';
+            });
+            
+            // 今年支出分类
+            const yearExpenses = records.filter(r => {
+                const recordDate = new Date(r.date);
+                return recordDate.getFullYear() === currentYear &&
+                       r.type === 'expense';
+            });
+            
+            // 全部支出分类
+            const allExpenses = records.filter(r => r.type === 'expense');
+            
+            // 为每个时间段创建图表
+            createChart('day-chart', todayExpenses, '今日支出分类');
+            createChart('month-chart', monthExpenses, '本月支出分类');
+            createChart('year-chart', yearExpenses, '今年支出分类');
+            createChart('all-chart', allExpenses, '全部支出分类');
+        }
+        
+        // 创建图表
+        function createChart(canvasId, expenses, title) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            
+            // 如果已有图表实例，先销毁
+            if (charts[canvasId]) {
+                charts[canvasId].destroy();
+            }
+            
+            // 按分类汇总支出
+            const categories = ['吃', '喝', '医', '衣', '住', '行', '乐', '其他'];
+            const categoryTotals = {};
+            
+            categories.forEach(cat => {
+                categoryTotals[cat] = 0;
+            });
+            
+            expenses.forEach(expense => {
+                if (categoryTotals.hasOwnProperty(expense.category)) {
+                    categoryTotals[expense.category] += expense.amount;
+                } else {
+                    // 如果分类不在预设中，归为"其他"
+                    categoryTotals['其他'] += expense.amount;
+                }
+            });
+            
+            // 过滤掉金额为0的分类
+            const labels = [];
+            const data = [];
+            const backgroundColors = [
+                '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+                '#9966FF', '#FF9F40', '#8AC926', '#FF6B6B',
+                '#6A11CB', '#2575FC'
+            ];
+            
+            categories.forEach((cat, index) => {
+                if (categoryTotals[cat] > 0) {
+                    labels.push(cat);
+                    data.push(categoryTotals[cat]);
+                }
+            });
+            
+            // 如果没有数据，显示空状态
+            if (data.length === 0) {
+                canvas.style.display = 'none';
+                const container = canvas.parentElement;
+                const emptyMsg = document.createElement('div');
+                emptyMsg.className = 'empty-state';
+                emptyMsg.innerHTML = `
+                    <i class="fas fa-chart-pie"></i>
+                    <p>暂无${title}数据</p>
+                `;
+                
+                // 移除之前的空状态
+                const existingEmpty = container.querySelector('.empty-state');
+                if (existingEmpty) {
+                    existingEmpty.remove();
+                }
+                
+                container.appendChild(emptyMsg);
+                return;
+            }
+            
+            // 显示canvas
+            canvas.style.display = 'block';
+            
+            // 移除可能的空状态
+            const container = canvas.parentElement;
+            const existingEmpty = container.querySelector('.empty-state');
+            if (existingEmpty) {
+                existingEmpty.remove();
+            }
+            
+            // 创建新图表
+            charts[canvasId] = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: backgroundColors.slice(0, labels.length),
+                        borderWidth: 1,
+                        borderColor: isDarkMode ? '#333' : '#ddd'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                usePointStyle: true,
+                                color: isDarkMode ? '#e0e0e0' : '#333'
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: title,
+                            font: {
+                                size: 16
+                            },
+                            color: isDarkMode ? '#e0e0e0' : '#333'
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 初始化一些示例数据（第一次使用时）
+        if (records.length === 0) {
+            const sampleRecords = [
+                {
+                    id: 1,
+                    date: new Date().toISOString().split('T')[0],
+                    amount: 28.5,
+                    type: 'expense',
+                    category: '吃',
+                    purpose: '午餐',
+                    notes: '公司食堂',
+                    timestamp: new Date().getTime() - 3600000
+                },
+                {
+                    id: 2,
+                    date: new Date().toISOString().split('T')[0],
+                    amount: 15,
+                    type: 'expense',
+                    category: '喝',
+                    purpose: '咖啡',
+                    notes: '星巴克',
+                    timestamp: new Date().getTime() - 7200000
+                },
+                {
+                    id: 3,
+                    date: new Date().toISOString().split('T')[0],
+                    amount: 6500,
+                    type: 'income',
+                    category: '收入',
+                    purpose: '工资',
+                    notes: '本月工资',
+                    timestamp: new Date().getTime() - 86400000
+                },
+                {
+                    id: 4,
+                    date: new Date(Date.now() - 86400000).toISOString().split('T')[0],
+                    amount: 120,
+                    type: 'expense',
+                    category: '医',
+                    purpose: '买药',
+                    notes: '感冒药',
+                    timestamp: new Date().getTime() - 172800000
+                }
+            ];
+            
+            records = sampleRecords;
+            localStorage.setItem('financeRecords', JSON.stringify(records));
+            updateDisplay();
+        }
+    </script>
+</body>
+</html>
